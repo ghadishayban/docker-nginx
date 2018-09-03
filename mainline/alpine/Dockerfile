@@ -2,10 +2,15 @@ FROM alpine:3.7
 
 LABEL maintainer="NGINX Docker Maintainers <docker-maint@nginx.com>"
 
-ENV NGINX_VERSION 1.15.3
+ARG NGINX_VERSION="1.15.3"
+ARG OPENSSL_VERSION="1.1.1-pre9"
 
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
-	&& CONFIG="\
+        && OPENSSL_CONFIG="\
+        no-async no-idea no-mdc2 no-rc5 no-zlib no-ssl3 enable-unit-test no-ssl3-method \
+        enable-rfc3779 enable-cms enable-ec_nistp_64_gcc_128 \
+        " \
+        && CONFIG="\
 		--prefix=/etc/nginx \
 		--sbin-path=/usr/sbin/nginx \
 		--modules-path=/usr/lib/nginx/modules \
@@ -56,7 +61,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 		gcc \
 		libc-dev \
 		make \
-		openssl-dev \
 		pcre-dev \
 		zlib-dev \
 		linux-headers \
@@ -67,13 +71,14 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 		geoip-dev \
 	&& curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
 	&& curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
+        && curl -fSL https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz -o openssl.tar.gz \
 	&& export GNUPGHOME="$(mktemp -d)" \
 	&& found=''; \
 	for server in \
+	        pgp.mit.edu \
 		ha.pool.sks-keyservers.net \
 		hkp://keyserver.ubuntu.com:80 \
 		hkp://p80.pool.sks-keyservers.net:80 \
-		pgp.mit.edu \
 	; do \
 		echo "Fetching GPG key $GPG_KEYS from $server"; \
 		gpg --keyserver "$server" --keyserver-options timeout=10 --recv-keys "$GPG_KEYS" && found=yes && break; \
@@ -83,7 +88,11 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& rm -rf "$GNUPGHOME" nginx.tar.gz.asc \
 	&& mkdir -p /usr/src \
 	&& tar -zxC /usr/src -f nginx.tar.gz \
-	&& rm nginx.tar.gz \
+        && tar -zxC /usr/src -f openssl.tar.gz \
+	&& rm nginx.tar.gz openssl.tar.gz \
+	&& cd /usr/src/openssl-$OPENSSL_VERSION \
+	&& ./config shared --prefix=/usr/local --openssldir=/usr/local/ssl $OPENSSL_CONFIG \
+        && make && make install_sw \
 	&& cd /usr/src/nginx-$NGINX_VERSION \
 	&& ./configure $CONFIG --with-debug \
 	&& make -j$(getconf _NPROCESSORS_ONLN) \
@@ -109,6 +118,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& strip /usr/sbin/nginx* \
 	&& strip /usr/lib/nginx/modules/*.so \
 	&& rm -rf /usr/src/nginx-$NGINX_VERSION \
+	&& rm -rf /usr/src/openssl-$OPENSSL_VERSION \
 	\
 	# Bring in gettext so we can get `envsubst`, then throw
 	# the rest away. To do this, we need to install `gettext`
