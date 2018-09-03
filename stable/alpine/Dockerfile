@@ -7,7 +7,7 @@ ARG OPENSSL_VERSION="1.1.1-pre9"
 
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         && OPENSSL_CONFIG="\
-        no-async no-idea no-mdc2 no-rc5 no-zlib no-tls1 no-ssl3 enable-unit-test no-ssl3-method \
+        no-async no-idea no-mdc2 no-rc5 no-zlib no-ssl3 enable-unit-test no-ssl3-method \
         enable-rfc3779 enable-cms enable-ec_nistp_64_gcc_128 \
         " \
 	&& CONFIG="\
@@ -92,7 +92,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& rm nginx.tar.gz openssl.tar.gz \
 	&& cd /usr/src/openssl-$OPENSSL_VERSION \
 	&& ./config shared --prefix=/usr/local --openssldir=/usr/local/ssl $OPENSSL_CONFIG \
-        && make && make install \
+        && make && make install_sw \
 	&& cd /usr/src/nginx-$NGINX_VERSION \
 	&& ./configure $CONFIG --with-debug \
 	&& make -j$(getconf _NPROCESSORS_ONLN) \
